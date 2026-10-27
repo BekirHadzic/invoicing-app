@@ -27,6 +27,7 @@
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   body {
     margin: 0;
     min-height: 100vh;
@@ -287,7 +288,7 @@
     </div>
     <div class="table-wrap" id="list-table">
       <table>
-        <thead><tr><th>Number</th><th>Client</th><th>Date</th><th>Due</th><th class="num">Total</th></tr></thead>
+        <thead><tr><th>Number</th><th>Client</th><th>Date</th><th>Due</th><th class="num">Total</th><th><span class="sr-only">Actions</span></th></tr></thead>
         <tbody id="list-body"></tbody>
       </table>
     </div>
@@ -365,7 +366,8 @@ function save() {
   }
 }
 
-const ICON_REMOVE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+const ICON_COPY = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></svg>';
+const ICON_REMOVE ='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
 // ---- Small helpers ----
 
@@ -454,13 +456,18 @@ function showList() {
       <td>${formatDate(invoice.date)}</td>
       <td>${formatDate(invoice.dueDate)}</td>
       <td class="num">${money(invoiceCents(invoice))}</td>
+      <td class="actions-cell">
+        <button type="button" class="icon-btn duplicate" aria-label="Duplicate ${invoiceNo(invoice.number)}" title="Duplicate">${ICON_COPY}</button>
+      </td>
     </tr>`).join('');
   show('list-view');
 }
 
 $('#list-body').addEventListener('click', (e) => {
   const row = e.target.closest('tr');
-  if (row) showInvoice(row.dataset.id);
+  if (!row) return;
+  if (e.target.closest('.duplicate')) duplicateInvoice(row.dataset.id);
+  else showInvoice(row.dataset.id);
 });
 $('#empty-new').addEventListener('click', openForm);
 
@@ -619,7 +626,8 @@ $('#invoice-form').addEventListener('submit', (e) => {
 
 // ---- One invoice ----
 
-function showInvoice(id) {
+// `note` is an optional message shown above the invoice.
+function showInvoice(id, note) {
   const invoice = data.invoices.find((inv) => inv.id === id);
   const rows = invoice.lines.map((line) => `
     <tr>
@@ -630,6 +638,7 @@ function showInvoice(id) {
     </tr>`).join('');
 
   $('#detail-view').innerHTML = `
+    ${note ? `<p class="notice" id="detail-note">${esc(note)}</p>` : ''}
     <div class="panel">
       <div class="detail-head">
         <div>
@@ -652,13 +661,34 @@ function showInvoice(id) {
     </div>
     <div class="toolbar">
       <button class="btn ghost" type="button" data-action="back">&larr; All invoices</button>
+      <button class="btn" type="button" data-action="duplicate" data-id="${invoice.id}">Duplicate</button>
     </div>`;
   show('detail-view');
 }
 
+// A copy with the same client and lines, the next number, and today's date.
+function duplicateInvoice(id) {
+  const original = data.invoices.find((inv) => inv.id === id);
+  const today = todayISO();
+  data.lastNumber += 1;
+  const copy = {
+    id: newId(),
+    number: data.lastNumber,
+    client: original.client,
+    date: today,
+    dueDate: addDays(today, PAYMENT_DAYS),
+    lines: original.lines.map((line) => ({ ...line })),
+  };
+  data.invoices.push(copy);
+  save();
+  showInvoice(copy.id, `This is a copy of ${invoiceNo(original.number)}, dated today.`);
+}
+
 $('#detail-view').addEventListener('click', (e) => {
   const button = e.target.closest('[data-action]');
-  if (button && button.dataset.action === 'back') showList();
+  if (!button) return;
+  if (button.dataset.action === 'back') showList();
+  if (button.dataset.action === 'duplicate') duplicateInvoice(button.dataset.id);
 });
 
 load();
