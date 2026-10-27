@@ -152,7 +152,7 @@
     color: var(--rose);
     font-size: 14px;
   }
-  .error ul { margin: 0; padding-left: 18px; }
+  .error ul { margin: 6px 0 0; padding-left: 18px; }
 
   /* ---- Invoice lines in the form ---- */
   .line {
@@ -445,8 +445,50 @@ function updateAmounts() {
   $('#form-total').textContent = money(total);
 }
 
+// Checks the form before saving. Returns the problems found; none means it can be saved.
+function validate() {
+  const problems = [];
+  const problem = (field, message) => {
+    field.setAttribute('aria-invalid', 'true');
+    problems.push({ field, message });
+  };
+
+  if (!$('#client').value.trim()) problem($('#client'), "Enter the client's name.");
+  if (!$('#date').value) problem($('#date'), 'Choose the invoice date.');
+
+  const rows = [...document.querySelectorAll('#lines .line')];
+  if (rows.length === 0) problem($('#add-line'), 'Add at least one line.');
+  rows.forEach((row, i) => {
+    const n = i + 1;
+    const desc = row.querySelector('.desc');
+    if (!desc.value.trim()) problem(desc, `Line ${n}: enter a description.`);
+    for (const [field, name] of [[row.querySelector('.qty'), 'quantity'], [row.querySelector('.price'), 'price']]) {
+      // A number field gives '' for text it can't read, like "abc"; badInput tells those apart from an empty field.
+      if (field.validity.badInput) problem(field, `Line ${n}: the ${name} must be a number.`);
+      else if (field.value === '') problem(field, `Line ${n}: enter a ${name}.`);
+      else if (Number(field.value) < 0) problem(field, `Line ${n}: the ${name} can't be negative.`);
+    }
+  });
+  return problems;
+}
+
+function showProblems(problems) {
+  const box = $('#form-error');
+  box.hidden = problems.length === 0;
+  box.innerHTML = problems.length
+    ? '<strong>The invoice wasn\'t saved:</strong><ul>' + problems.map((p) => `<li>${esc(p.message)}</li>`).join('') + '</ul>'
+    : '';
+  if (problems.length) problems[0].field.focus();
+}
+
+function clearProblems() {
+  for (const field of document.querySelectorAll('#invoice-form [aria-invalid]')) field.removeAttribute('aria-invalid');
+  showProblems([]);
+}
+
 function openForm() {
   $('#invoice-form').reset();
+  clearProblems();
   $('#date').value = todayISO();
   $('#form-number').textContent = invoiceNo(data.lastNumber + 1);
   $('#lines').innerHTML = '';
@@ -480,9 +522,17 @@ $('#lines').addEventListener('click', (e) => {
   }
 });
 $('#lines').addEventListener('input', updateAmounts);
+// Once you fix a field, it stops being marked red.
+$('#invoice-form').addEventListener('input', (e) => e.target.removeAttribute('aria-invalid'));
 
 $('#invoice-form').addEventListener('submit', (e) => {
   e.preventDefault();
+  clearProblems();
+  const problems = validate();
+  if (problems.length) {
+    showProblems(problems);
+    return;
+  }
   const form = readForm();
 
   data.lastNumber += 1;
