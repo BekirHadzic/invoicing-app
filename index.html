@@ -85,7 +85,7 @@
 
   /* ---- Form controls ---- */
   .row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
-  .row + .row, .row + .lines, .lines + .row { margin-top: 18px; }
+  .row + .row, .row + .lines, .form-hint + .lines, .lines + .row { margin-top: 18px; }
   input {
     font: 16px/1.3 var(--font);
     color: var(--fg);
@@ -113,7 +113,8 @@
     color: var(--muted);
   }
   .field.grow { flex: 1 1 260px; }
-  .hint { font-size: 12px; font-weight: 400; text-transform: none; letter-spacing: 0; }
+  .hint { font-size: 12px; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted); }
+  .form-hint { margin: 8px 0 0; }
   .btn {
     border: 0;
     border-radius: 999px;
@@ -286,7 +287,7 @@
     </div>
     <div class="table-wrap" id="list-table">
       <table>
-        <thead><tr><th>Number</th><th>Client</th><th>Date</th><th class="num">Total</th></tr></thead>
+        <thead><tr><th>Number</th><th>Client</th><th>Date</th><th>Due</th><th class="num">Total</th></tr></thead>
         <tbody id="list-body"></tbody>
       </table>
     </div>
@@ -304,7 +305,11 @@
         <label class="field">Invoice date
           <input id="date" type="date">
         </label>
+        <label class="field">Due date
+          <input id="due-date" type="date">
+        </label>
       </div>
+      <p class="hint form-hint">The due date is 15 days after the invoice date unless you change it.</p>
 
       <div class="lines">
         <div class="line line-head" aria-hidden="true">
@@ -373,11 +378,22 @@ function newId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 
-// Today's date as YYYY-MM-DD in local time (toISOString would use UTC and can be a day off).
-function todayISO() {
-  const d = new Date();
+// A date as YYYY-MM-DD in local time (toISOString would use UTC and can be a day off).
+function toISO(d) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
+
+function todayISO() {
+  return toISO(new Date());
+}
+
+// addDays('2026-10-27', 15) -> '2026-11-11'. Date handles month and year ends for us.
+function addDays(iso, days) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return toISO(new Date(y, m - 1, d + days));
+}
+
+const PAYMENT_DAYS = 15;
 
 // 2026-10-27 -> 27.10.2026
 function formatDate(iso) {
@@ -431,6 +447,7 @@ function showList() {
       <td><button type="button" class="link">${invoiceNo(invoice.number)}</button></td>
       <td>${esc(invoice.client)}</td>
       <td>${formatDate(invoice.date)}</td>
+      <td>${formatDate(invoice.dueDate)}</td>
       <td class="num">${money(invoiceCents(invoice))}</td>
     </tr>`).join('');
   show('list-view');
@@ -483,6 +500,10 @@ function validate() {
 
   if (!$('#client').value.trim()) problem($('#client'), "Enter the client's name.");
   if (!$('#date').value) problem($('#date'), 'Choose the invoice date.');
+  if (!$('#due-date').value) problem($('#due-date'), 'Choose the due date.');
+  else if ($('#date').value && $('#due-date').value < $('#date').value) {
+    problem($('#due-date'), "The due date can't be before the invoice date.");
+  }
 
   const rows = [...document.querySelectorAll('#lines .line')];
   if (rows.length === 0) problem($('#add-line'), 'Add at least one line.');
@@ -518,6 +539,8 @@ function openForm() {
   $('#invoice-form').reset();
   clearProblems();
   $('#date').value = todayISO();
+  $('#due-date').value = addDays(todayISO(), PAYMENT_DAYS);
+  dueDateChanged = false;
   $('#form-number').textContent = invoiceNo(data.lastNumber + 1);
   $('#lines').innerHTML = '';
   addLineRow();
@@ -525,11 +548,19 @@ function openForm() {
   $('#client').focus();
 }
 
+// The due date follows the invoice date until you pick a due date yourself.
+let dueDateChanged = false;
+$('#date').addEventListener('change', () => {
+  if (!dueDateChanged && $('#date').value) $('#due-date').value = addDays($('#date').value, PAYMENT_DAYS);
+});
+$('#due-date').addEventListener('change', () => { dueDateChanged = true; });
+
 // What's typed in the form right now.
 function readForm() {
   return {
     client: $('#client').value.trim(),
     date: $('#date').value,
+    dueDate: $('#due-date').value,
     lines: [...document.querySelectorAll('#lines .line')].map((row) => ({
       description: row.querySelector('.desc').value.trim(),
       quantity: row.querySelector('.qty').value,
@@ -569,6 +600,7 @@ $('#invoice-form').addEventListener('submit', (e) => {
     number: data.lastNumber,
     client: form.client,
     date: form.date,
+    dueDate: form.dueDate,
     lines: form.lines.map((line) => ({
       description: line.description,
       quantity: Number(line.quantity),
@@ -602,6 +634,7 @@ function showInvoice(id) {
         </div>
         <dl class="meta">
           <div><dt>Date</dt><dd>${formatDate(invoice.date)}</dd></div>
+          <div><dt>Due date</dt><dd id="detail-due">${formatDate(invoice.dueDate)}</dd></div>
         </dl>
       </div>
       <div class="table-wrap">
