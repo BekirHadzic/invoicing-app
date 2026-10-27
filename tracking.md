@@ -4,7 +4,7 @@ Which features are done. A feature is done when it works in the browser and is c
 
 ## Bronze (required)
 
-- [ ] Create an invoice: client name, date, and lines with description, quantity and price
+- [x] Create an invoice: client name, date, and lines with description, quantity and price
 - [ ] Each line's amount and the invoice total are calculated
 - [ ] Each new invoice gets the next number automatically
 - [ ] A list of invoices, newest first, with number, client, date and total
