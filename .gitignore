@@ -1,0 +1,37 @@
+# Files git should never track in this project.
+# The app keeps invoices in the browser (localStorage), so no client data is in this folder.
+# These rules make sure nothing private or useless gets in by accident.
+
+# --- Secrets ---
+# Passwords and API keys, if we ever add a server or a cloud backup.
+# Once a secret is pushed to GitHub it must be treated as stolen, so it never goes in.
+.env
+.env.*
+*.key
+*.pem
+
+# --- Exported data ---
+# CSV exports (Silver) and JSON backups contain real client names and amounts.
+# They belong to you, not to a public repository.
+*.csv
+invoices-backup*.json
+
+# --- Build output ---
+# The APK or .exe (Gold) is made from the code; anyone can rebuild it. Large files don't belong in git.
+dist/
+build/
+*.exe
+*.apk
+
+# --- Tools ---
+# Folders that tools create by themselves and can recreate at any time.
+node_modules/
+__pycache__/
+
+# --- Operating system and editor ---
+# Windows and macOS create these on their own; they're not part of the app.
+Thumbs.db
+desktop.ini
+.DS_Store
+# Personal VS Code settings (window layout, your own preferences).
+.vscode/
