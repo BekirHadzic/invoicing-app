@@ -216,6 +216,18 @@
   tfoot td { border-bottom: 0; font-weight: 700; }
   tfoot .num { font-size: 20px; }
   tr.open-invoice { cursor: pointer; }
+  .link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--fg);
+    font: 500 15px var(--mono);
+    text-decoration: underline;
+    text-decoration-color: var(--line);
+    text-underline-offset: 4px;
+    cursor: pointer;
+  }
+  .link:hover { text-decoration-color: var(--rose); }
   tr.open-invoice:hover td { background: var(--panel); }
   .actions-cell { width: 1%; white-space: nowrap; text-align: right; }
 
@@ -257,6 +269,24 @@
 </header>
 
 <main>
+  <!-- All invoices -->
+  <section id="list-view" hidden>
+    <div class="list-head">
+      <h1>Invoices</h1>
+      <p class="eyebrow" id="list-count"></p>
+    </div>
+    <div class="panel empty" id="list-empty">
+      <p>No invoices yet.</p>
+      <button class="btn" type="button" id="empty-new">Create your first invoice</button>
+    </div>
+    <div class="table-wrap" id="list-table">
+      <table>
+        <thead><tr><th>Number</th><th>Client</th><th>Date</th><th class="num">Total</th></tr></thead>
+        <tbody id="list-body"></tbody>
+      </table>
+    </div>
+  </section>
+
   <!-- Create an invoice -->
   <section id="form-view" hidden>
     <form id="invoice-form" class="panel" novalidate>
@@ -355,9 +385,34 @@ function money(cents) {
 }
 
 function show(view) {
-  for (const id of ['form-view', 'detail-view']) $('#' + id).hidden = id !== view;
+  for (const id of ['list-view', 'form-view', 'detail-view']) $('#' + id).hidden = id !== view;
   window.scrollTo(0, 0);
 }
+
+// ---- All invoices ----
+
+// Newest first: by invoice date, and by number when two have the same date.
+function showList() {
+  const invoices = [...data.invoices].sort((a, b) => b.date.localeCompare(a.date) || b.number - a.number);
+
+  $('#list-empty').hidden = invoices.length > 0;
+  $('#list-table').hidden = invoices.length === 0;
+  $('#list-count').textContent = invoices.length === 1 ? '1 invoice' : invoices.length + ' invoices';
+  $('#list-body').innerHTML = invoices.map((invoice) => `
+    <tr class="open-invoice" data-id="${invoice.id}">
+      <td><button type="button" class="link">${invoiceNo(invoice.number)}</button></td>
+      <td>${esc(invoice.client)}</td>
+      <td>${formatDate(invoice.date)}</td>
+      <td class="num">${money(invoiceCents(invoice))}</td>
+    </tr>`).join('');
+  show('list-view');
+}
+
+$('#list-body').addEventListener('click', (e) => {
+  const row = e.target.closest('tr');
+  if (row) showInvoice(row.dataset.id);
+});
+$('#empty-new').addEventListener('click', openForm);
 
 // ---- Create an invoice ----
 
@@ -414,7 +469,7 @@ function readForm() {
 }
 
 $('#new-invoice').addEventListener('click', openForm);
-$('#cancel').addEventListener('click', openForm);
+$('#cancel').addEventListener('click', showList);
 $('#add-line').addEventListener('click', () => addLineRow().querySelector('.desc').focus());
 
 $('#lines').addEventListener('click', (e) => {
@@ -477,11 +532,19 @@ function showInvoice(id) {
           <tfoot><tr><td colspan="3">Total</td><td class="num" id="detail-total">${money(invoiceCents(invoice))}</td></tr></tfoot>
         </table>
       </div>
+    </div>
+    <div class="toolbar">
+      <button class="btn ghost" type="button" data-action="back">&larr; All invoices</button>
     </div>`;
   show('detail-view');
 }
 
-openForm();
+$('#detail-view').addEventListener('click', (e) => {
+  const button = e.target.closest('[data-action]');
+  if (button && button.dataset.action === 'back') showList();
+});
+
+showList();
 </script>
 </body>
 </html>
