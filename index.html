@@ -270,10 +270,11 @@
 
       <div class="lines">
         <div class="line line-head" aria-hidden="true">
-          <span>Description</span><span class="num">Quantity</span><span class="num">Price</span><span></span><span></span>
+          <span>Description</span><span class="num">Quantity</span><span class="num">Price</span><span class="num">Amount</span><span></span>
         </div>
         <div id="lines"></div>
         <button type="button" class="btn ghost small" id="add-line">+ Add line</button>
+        <div class="form-total">Total <strong id="form-total"></strong></div>
       </div>
 
       <div id="form-error" class="error" role="alert" hidden></div>
@@ -327,6 +328,23 @@ function formatQty(quantity) {
   return String(quantity).replace('.', ',');
 }
 
+// ---- Money ----
+// Amounts are rounded to whole cents once, then added up as whole numbers,
+// because 0.1 + 0.2 is not exactly 0.3 in JavaScript.
+
+// Quantity x price in cents. The tiny extra stops 1.005 * 100 = 100.4999… from rounding down.
+function lineCents(line) {
+  return Math.round(line.quantity * line.price * 100 + 1e-7);
+}
+
+function invoiceCents(invoice) {
+  return invoice.lines.reduce((sum, line) => sum + lineCents(line), 0);
+}
+
+function money(cents) {
+  return (cents / 100).toFixed(2);
+}
+
 function show(view) {
   for (const id of ['form-view', 'detail-view']) $('#' + id).hidden = id !== view;
   window.scrollTo(0, 0);
@@ -341,10 +359,26 @@ function addLineRow() {
     <input class="desc" placeholder="Description" aria-label="Description">
     <input class="qty" type="number" step="any" min="0" inputmode="decimal" placeholder="Qty" aria-label="Quantity" value="1">
     <input class="price" type="number" step="any" min="0" inputmode="decimal" placeholder="Price" aria-label="Price">
-    <span></span>
+    <span class="amount"></span>
     <button type="button" class="icon-btn danger remove" aria-label="Remove line" title="Remove line">${ICON_REMOVE}</button>`;
   $('#lines').append(row);
+  updateAmounts();
   return row;
+}
+
+// Recalculates each line's amount and the total while you type.
+// Empty or unfinished numbers count as 0 here; saving checks them properly.
+function updateAmounts() {
+  let total = 0;
+  for (const row of document.querySelectorAll('#lines .line')) {
+    const cents = lineCents({
+      quantity: Number(row.querySelector('.qty').value) || 0,
+      price: Number(row.querySelector('.price').value) || 0,
+    });
+    row.querySelector('.amount').textContent = money(cents);
+    total += cents;
+  }
+  $('#form-total').textContent = money(total);
 }
 
 function openForm() {
@@ -375,8 +409,12 @@ $('#add-line').addEventListener('click', () => addLineRow().querySelector('.desc
 
 $('#lines').addEventListener('click', (e) => {
   const remove = e.target.closest('.remove');
-  if (remove) remove.closest('.line').remove();
+  if (remove) {
+    remove.closest('.line').remove();
+    updateAmounts();
+  }
 });
+$('#lines').addEventListener('input', updateAmounts);
 
 $('#invoice-form').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -404,7 +442,8 @@ function showInvoice(id) {
     <tr>
       <td>${esc(line.description)}</td>
       <td class="num">${formatQty(line.quantity)}</td>
-      <td class="num">${line.price}</td>
+      <td class="num">${money(lineCents({ quantity: 1, price: line.price }))}</td>
+      <td class="num">${money(lineCents(line))}</td>
     </tr>`).join('');
 
   $('#detail-view').innerHTML = `
@@ -420,8 +459,9 @@ function showInvoice(id) {
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Description</th><th class="num">Quantity</th><th class="num">Price</th></tr></thead>
+          <thead><tr><th>Description</th><th class="num">Quantity</th><th class="num">Price</th><th class="num">Amount</th></tr></thead>
           <tbody>${rows}</tbody>
+          <tfoot><tr><td colspan="3">Total</td><td class="num" id="detail-total">${money(invoiceCents(invoice))}</td></tr></tfoot>
         </table>
       </div>
     </div>`;
