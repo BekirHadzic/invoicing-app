@@ -158,7 +158,7 @@
   /* ---- Invoice lines in the form ---- */
   .line {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 96px 130px 140px 38px;
+    grid-template-columns: minmax(0, 1fr) 96px 130px 160px 38px;
     gap: 8px;
     align-items: center;
     margin-bottom: 8px;
@@ -313,7 +313,7 @@
 
       <div class="lines">
         <div class="line line-head" aria-hidden="true">
-          <span>Description</span><span class="num">Quantity</span><span class="num">Price</span><span class="num">Amount</span><span></span>
+          <span>Description</span><span class="num">Quantity</span><span class="num">Price (KM)</span><span class="num">Amount</span><span></span>
         </div>
         <div id="lines"></div>
         <button type="button" class="btn ghost small" id="add-line">+ Add line</button>
@@ -424,8 +424,13 @@ function invoiceCents(invoice) {
   return invoice.lines.reduce((sum, line) => sum + lineCents(line), 0);
 }
 
+// 125000 cents -> 1.250,00 KM (dot between thousands, comma before the cents).
 function money(cents) {
-  return (cents / 100).toFixed(2);
+  const sign = cents < 0 ? '-' : '';
+  const abs = Math.abs(cents);
+  const whole = String(Math.floor(abs / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const rest = String(abs % 100).padStart(2, '0');
+  return sign + whole + ',' + rest + ' KM';
 }
 
 function show(view) {
