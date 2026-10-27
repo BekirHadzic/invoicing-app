@@ -9,7 +9,7 @@ Which features are done. A feature is done when it works in the browser and is c
 - [x] Each new invoice gets the next number automatically
 - [x] A list of invoices, newest first, with number, client, date and total
 - [x] The app refuses a line without a description, or with a negative quantity or price
-- [ ] Invoices are still there after you close and reopen the app
+- [x] Invoices are still there after you close and reopen the app
 - [ ] A due date on each invoice, 15 days after the invoice date unless you change it
 - [ ] Amounts shown with two decimals and the currency, for example 1.250,00 KM
 - [ ] Duplicate an invoice: a copy with the next number and today's date

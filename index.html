@@ -269,6 +269,11 @@
 </header>
 
 <main>
+  <p class="notice" id="storage-warning" role="alert" hidden>
+    This browser isn't letting the app save. Your invoices will be lost when you close it.
+    Check that cookies and site data are allowed, and that this isn't a private window.
+  </p>
+
   <!-- All invoices -->
   <section id="list-view" hidden>
     <div class="list-head">
@@ -326,11 +331,34 @@
 <script>
 'use strict';
 
-// All invoices, kept in memory for now.
-// lastNumber only goes up, so an invoice number is never used twice.
-const data = { lastNumber: 0, invoices: [] };
-
 const $ = (selector) => document.querySelector(selector);
+
+// ---- Saving ----
+// Everything is saved in the browser's localStorage under one key, so invoices
+// are still there after you close and reopen the app (same browser, same address).
+const STORAGE_KEY = 'salty-invoices';
+
+// lastNumber only goes up, so an invoice number is never used twice.
+let data = { lastNumber: 0, invoices: [] };
+
+function load() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (saved && Array.isArray(saved.invoices)) data = saved;
+  } catch (err) {
+    console.error('Could not read saved invoices', err);
+  }
+}
+
+function save() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    $('#storage-warning').hidden = true;
+  } catch (err) {
+    console.error('Could not save invoices', err);
+    $('#storage-warning').hidden = false;
+  }
+}
 
 const ICON_REMOVE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 
@@ -548,6 +576,7 @@ $('#invoice-form').addEventListener('submit', (e) => {
     })),
   };
   data.invoices.push(invoice);
+  save();
   showInvoice(invoice.id);
 });
 
@@ -594,6 +623,7 @@ $('#detail-view').addEventListener('click', (e) => {
   if (button && button.dataset.action === 'back') showList();
 });
 
+load();
 showList();
 </script>
 </body>
