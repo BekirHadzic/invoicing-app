@@ -227,6 +227,8 @@
     gap: 16px 32px;
     margin-bottom: 24px;
   }
+  .detail-head h1 { margin-bottom: 6px; }
+  .client { margin: 0; font-size: 18px; font-weight: 600; }
   .meta { display: flex; flex-wrap: wrap; gap: 16px 32px; margin: 0; }
   .meta dt {
     font-size: 11px;
@@ -258,7 +260,8 @@
   <!-- Create an invoice -->
   <section id="form-view" hidden>
     <form id="invoice-form" class="panel" novalidate>
-      <h1>New invoice</h1>
+      <p class="eyebrow">New invoice</p>
+      <h1 id="form-number"></h1>
       <div class="row">
         <label class="field grow">Client
           <input id="client" autocomplete="off" placeholder="Client name">
@@ -294,7 +297,8 @@
 'use strict';
 
 // All invoices, kept in memory for now.
-const data = { invoices: [] };
+// lastNumber only goes up, so an invoice number is never used twice.
+const data = { lastNumber: 0, invoices: [] };
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -321,6 +325,11 @@ function todayISO() {
 function formatDate(iso) {
   const [y, m, d] = iso.split('-');
   return d + '.' + m + '.' + y;
+}
+
+// 7 -> INV-0007
+function invoiceNo(number) {
+  return 'INV-' + String(number).padStart(4, '0');
 }
 
 // 1.5 -> 1,5
@@ -384,6 +393,7 @@ function updateAmounts() {
 function openForm() {
   $('#invoice-form').reset();
   $('#date').value = todayISO();
+  $('#form-number').textContent = invoiceNo(data.lastNumber + 1);
   $('#lines').innerHTML = '';
   addLineRow();
   show('form-view');
@@ -420,8 +430,10 @@ $('#invoice-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const form = readForm();
 
+  data.lastNumber += 1;
   const invoice = {
     id: newId(),
+    number: data.lastNumber,
     client: form.client,
     date: form.date,
     lines: form.lines.map((line) => ({
@@ -451,7 +463,8 @@ function showInvoice(id) {
       <div class="detail-head">
         <div>
           <p class="eyebrow">Invoice</p>
-          <h1>${esc(invoice.client)}</h1>
+          <h1 id="detail-number">${invoiceNo(invoice.number)}</h1>
+          <p class="client" id="detail-client">${esc(invoice.client)}</p>
         </div>
         <dl class="meta">
           <div><dt>Date</dt><dd>${formatDate(invoice.date)}</dd></div>

@@ -6,7 +6,7 @@ Which features are done. A feature is done when it works in the browser and is c
 
 - [x] Create an invoice: client name, date, and lines with description, quantity and price
 - [x] Each line's amount and the invoice total are calculated
-- [ ] Each new invoice gets the next number automatically
+- [x] Each new invoice gets the next number automatically
 - [ ] A list of invoices, newest first, with number, client, date and total
 - [ ] The app refuses a line without a description, or with a negative quantity or price
 - [ ] Invoices are still there after you close and reopen the app
